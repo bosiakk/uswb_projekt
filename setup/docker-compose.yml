@@ -3,40 +3,65 @@ version: '3.8'
 services:
   openldap:
     image: osixia/openldap:1.5.0
+    container_name: sso_openldap
+    environment:
+      LDAP_ORGANISATION: "Example Org"
+      LDAP_DOMAIN: "example.org"
+      LDAP_ADMIN_PASSWORD: "admin"
     ports:
       - "389:389"
-    environment:
-      LDAP_ORGANISATION: "SSO Projekt"
-      LDAP_DOMAIN: "sso.local"
-      LDAP_ADMIN_PASSWORD: "admin"
+    volumes:
+      - ./bootstrap.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/50-bootstrap.ldif
+    networks:
+      - sso_network
 
   phpldapadmin:
     image: osixia/phpldapadmin:0.9.0
-    ports:
-      - "6443:443"
+    container_name: sso_phpldapadmin
     environment:
       PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "6443:80"
     depends_on:
       - openldap
+    networks:
+      - sso_network
 
   postgres:
     image: postgres:15
+    container_name: sso_postgres
     environment:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sso_network
 
   keycloak:
-    image: quay.io/keycloak/keycloak:22.0.5
+    image: quay.io/keycloak/keycloak:24.0.0
+    container_name: sso_keycloak
     command: start-dev
-    ports:
-      - "8080:8080"
     environment:
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres/keycloak
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: password
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
     depends_on:
       - postgres
+      - openldap
+    networks:
+      - sso_network
+
+volumes:
+  postgres_data:
+
+networks:
+  sso_network:
+    driver: bridge

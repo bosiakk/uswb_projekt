@@ -2,7 +2,6 @@ services:
   openldap:
     image: osixia/openldap:1.5.0
     container_name: sso_openldap
-    command: --copy-service
     environment:
       LDAP_ORGANISATION: "Example Org"
       LDAP_DOMAIN: "example.org"
